@@ -112,7 +112,7 @@ __global__ void kernel(half *A, half *B, half *C)
   __syncthreads();
 
   // create descriptors for the matrices
-  GmmaDescriptor desc_a = make_desc_a(A_shared);
+  GmmaDescriptor desc_a = make_desc_a<3>(A_shared);
   GmmaDescriptor desc_b = make_desc_b(B_shared);
 
   // accumulator
