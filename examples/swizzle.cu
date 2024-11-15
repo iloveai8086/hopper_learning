@@ -36,6 +36,8 @@ __global__ void kernel(half *A, half *B, half *C)
   __align__(16) __shared__ half A_shared[M * K];
   __align__(16) __shared__ half B_shared[K * N];
 
+  __align__(16) __shared__ half buffer[2 * 64];
+
   // https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#asynchronous-multiply-and-accumulate-instruction-wgmma-mma-async
   // 8x8 core blocks, we use one thread here to
   // easy demonstrate the required layout
@@ -53,6 +55,49 @@ __global__ void kernel(half *A, half *B, half *C)
         int offset = block_id * 64 + block_row * 8 + block_col;
         A_shared[offset] = A[i * K + j];
       }
+    }
+    
+    // swizzle A
+    for (int pair = 0 pair < 8; pair++) {
+        int p1_row = 0;
+        int p2_row = 0;
+        
+        for (int i = 0; i < 8; i++) {
+            if (i % 2 == 0) {
+                for (int j = 0; j < 8; j++) {
+                    buffer[i * 8 + j] = A_shared[pair * 128 + p1_row * 8 + j];
+                    p1_row++;
+                }
+            }
+            else {
+                for (int j = 0; j < 8; j++) {
+                    buffer[i * 8 + j] = A_shared[pair * 128 + 64 + p2_row * 8 + j];
+                    p2_row++;
+                }
+            }
+        }
+        
+        for (int i = 0; i < 8; i++) {
+            if (i % 2 == 0) {
+                for (int j = 0; j < 8; j++) {
+                    buffer[64 + i * 8 + j] = A_shared[pair * 128 + 64 + p2_row * 8 + j];
+                    p2_row++;
+                }
+            }
+            else {
+                for (int j = 0; j < 8; j++) {
+                    buffer[64 + i * 8 + j] = A_shared[pair * 128 + p1_row * 8 + j];
+                    p1_row++;
+                }
+            }
+        }
+        
+        // write back to A_shared
+        for (int row = 0; row < 16; row ++) {
+            for (int col = 0; col < 8; col++) {
+                A_shared[pair * 128 + row * 8 + col] = buffer[row * 8 + col];
+            }
+        }
     }
 
     for (int i = 0; i < K; i++)

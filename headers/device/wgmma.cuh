@@ -98,7 +98,7 @@ __device__ GmmaDescriptor make_desc_a(PointerType smem_ptr)
   GmmaDescriptor desc;
   uint32_t uint_ptr = static_cast<uint32_t>(__cvta_generic_to_shared(smem_ptr));
   desc.bitfield.start_address_ = uint_ptr >> 4;
-  desc.bitfield.layout_type_ = 0;         // no swizzle
+  desc.bitfield.layout_type_ = 3;         // no swizzle
   desc.bitfield.leading_byte_offset_ = 8; // 16 bytes
   desc.bitfield.stride_byte_offset_ = 16; // 8 bytes
   /// base_offset_ is not valid for non-swizzle
