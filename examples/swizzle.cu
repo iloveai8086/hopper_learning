@@ -56,10 +56,10 @@ __global__ void kernel(half *A, half *B, half *C)
         A_shared[offset] = A[i * K + j];
       }
     }
-    
+
     // swizzle A
     for (int pair = 0; pair < 8; pair++) {
-        
+
         for (int i = 0; i < 8; i++) {
             if (i % 2 == 0) {
                 for (int j = 0; j < 8; j++) {
@@ -72,20 +72,20 @@ __global__ void kernel(half *A, half *B, half *C)
                 }
             }
         }
-        
+
         for (int i = 0; i < 8; i++) {
             if (i % 2 == 0) {
                 for (int j = 0; j < 8; j++) {
-                    buffer[64 + i * 8 + j] = A_shared[pair * 128 + 64 + i / 2 * 8 + j];
+                    buffer[64 + i * 8 + j] = A_shared[pair * 128 + 64 + 32 + i / 2 * 8 + j];
                 }
             }
             else {
                 for (int j = 0; j < 8; j++) {
-                    buffer[64 + i * 8 + j] = A_shared[pair * 128 + i / 2 * 8 + j];
+                    buffer[64 + i * 8 + j] = A_shared[pair * 128 + 32 + i / 2 * 8 + j];
                 }
             }
         }
-        
+
         // write back to A_shared
         for (int row = 0; row < 16; row ++) {
             for (int col = 0; col < 8; col++) {
