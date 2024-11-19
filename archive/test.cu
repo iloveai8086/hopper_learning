@@ -22,7 +22,7 @@
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
-constexpr size_t M = 64; // Number of rows of matrix
+constexpr size_t M = 16; // Number of rows of matrix
 constexpr size_t K = 16; // Number of columns of matrix
 constexpr size_t gmem_len = M * K;
 
@@ -85,7 +85,7 @@ int main()
 {
   // fill the host matrix
   int host_tensor[gmem_len];
-  fill_tilewise(host_tensor, M, K, m, k);
+  fill_rowwise(host_tensor, M, K, m, k);
 
   print_matrix(host_tensor, M, K);
 
