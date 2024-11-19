@@ -23,10 +23,10 @@ using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
 constexpr size_t M = 64; // Number of rows of matrix
-constexpr size_t K = 32; // Number of columns of matrix
+constexpr size_t K = 16; // Number of columns of matrix
 constexpr size_t gmem_len = M * K;
 
-constexpr int m = 16; // subtile rows
+constexpr int m = 8; // subtile rows
 constexpr int k = 8;  // subtile columns
 
 static constexpr int buf_len = k * m;
@@ -99,9 +99,9 @@ int main()
 
   // launch kernel, select a tile coordinate
   // x (0 16 32 48) y (0 8 16 24) must be aligned with m and k
-  int coordinate_m = 48;
-  int coordinate_k = 24;
-  test<<<1, 128>>>(tensor_map, coordinate_k, coordinate_m);
+  int coordinate_m = 0;
+  int coordinate_k = 0;
+  test<<<1, 64>>>(tensor_map, coordinate_k, coordinate_m);
 
   cuda_check_error();
 
