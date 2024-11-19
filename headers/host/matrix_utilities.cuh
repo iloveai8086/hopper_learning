@@ -95,10 +95,10 @@ void fill_tile(half *matrix, int rows, int cols)
   }
 }
 
-void fill_rowwise(half *matrix, int rows, int cols) {
+void fill_rowwise(int *matrix, int rows, int cols) {
 	for (int r = 0; r < rows; r++) {
 		for (int c = 0; c < cols; c++) {
-			matrix[r * cols + c] = __float2half(r);
+			matrix[r * cols + c] = r;
 		}
 	} 
 }
