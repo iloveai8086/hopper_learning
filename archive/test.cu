@@ -85,7 +85,7 @@ int main()
 {
   // fill the host matrix
   int host_tensor[gmem_len];
-  fill_rowwise(host_tensor, M, K, m, k);
+  fill_rowwise(host_tensor, M, K);
 
   print_matrix(host_tensor, M, K);
 
