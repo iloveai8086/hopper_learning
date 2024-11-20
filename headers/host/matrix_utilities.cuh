@@ -133,7 +133,8 @@ void fill_tilewise(int *matrix, int rows, int cols, int tile_size_row, int tile_
   {
     for (int j = 0; j < cols; j++)
     {
-      matrix[i * cols + j] = (i / tile_size_row) * (cols / tile_size_col) + j / tile_size_col;
+    	int id = (i / tile_size_row) * (cols / tile_size_col) + j / tile_size_col;
+      matrix[i * cols + j] = id % 10;
     }
   }
 }
