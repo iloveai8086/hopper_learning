@@ -26,8 +26,8 @@ constexpr size_t M = 16; // Number of rows of matrix
 constexpr size_t K = 16; // Number of columns of matrix
 constexpr size_t gmem_len = M * K;
 
-constexpr int m = 8; // subtile rows
-constexpr int k = 8;  // subtile columns
+constexpr int m = 16; // subtile rows
+constexpr int k = 16;  // subtile columns
 
 static constexpr int buf_len = k * m;
 
@@ -60,12 +60,6 @@ __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x, int 
   bar.wait(cuda::std::move(token));
 
   __syncthreads();
-
-  // Update subtile, + 1
-  for (int i = threadIdx.x; i < buf_len; i += blockDim.x)
-  {
-    smem_buffer[i] += 1;
-  }
 
   cde::fence_proxy_async_shared_cta();
   __syncthreads();
