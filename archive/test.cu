@@ -60,6 +60,16 @@ __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x, int 
   bar.wait(cuda::std::move(token));
 
   __syncthreads();
+  
+  // print the matrix
+  if (threadIdx.x == 0) {
+    for (int r = 0; r < m; r++) {
+	  for (int c = 0; c < k; c++) {
+		printf("%d ", smem_buffer[r * k + c]);
+	  }
+	  printf("\n");
+	}
+  }
 
   cde::fence_proxy_async_shared_cta();
   __syncthreads();
@@ -79,7 +89,7 @@ int main()
 {
   // fill the host matrix
   int host_tensor[gmem_len];
-  fill_rowwise(host_tensor, M, K);
+  fill_tilewise(host_tensor, M, K, 8, 8);
 
   print_matrix(host_tensor, M, K);
 
