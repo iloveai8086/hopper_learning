@@ -22,12 +22,12 @@
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
-constexpr size_t M = 16; // Number of rows of matrix
-constexpr size_t K = 16; // Number of columns of matrix
+constexpr size_t M = 64; // Number of rows of matrix
+constexpr size_t K = 64; // Number of columns of matrix
 constexpr size_t gmem_len = M * K;
 
-constexpr int m = 16; // subtile rows
-constexpr int k = 16;  // subtile columns
+constexpr int m = 64; // subtile rows
+constexpr int k = 64;  // subtile columns
 
 static constexpr int buf_len = k * m;
 
@@ -62,14 +62,14 @@ __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x, int 
   __syncthreads();
   
   // print the matrix
-  if (threadIdx.x == 0) {
-    for (int r = 0; r < m; r++) {
-	  for (int c = 0; c < k; c++) {
-		printf("%d ", smem_buffer[r * k + c]);
-	  }
-	  printf("\n");
-	}
-  }
+ //  if (threadIdx.x == 0) {
+ //    for (int r = 0; r < m; r++) {
+	//   for (int c = 0; c < k; c++) {
+	// 	printf("%d ", smem_buffer[r * k + c]);
+	//   }
+	//   printf("\n");
+	// }
+ //  }
 
   cde::fence_proxy_async_shared_cta();
   __syncthreads();
@@ -91,7 +91,7 @@ int main()
   int host_tensor[gmem_len];
   fill_tilewise(host_tensor, M, K, 8, 8);
 
-  print_matrix(host_tensor, M, K);
+  // print_matrix(host_tensor, M, K);
 
   // copy host matrix to device
   int *tensor_ptr = nullptr;
@@ -105,7 +105,7 @@ int main()
   // x (0 16 32 48) y (0 8 16 24) must be aligned with m and k
   int coordinate_m = 0;
   int coordinate_k = 0;
-  test<<<1, 64>>>(tensor_map, coordinate_k, coordinate_m);
+  test<<<1, 128>>>(tensor_map, coordinate_k, coordinate_m);
 
   cuda_check_error();
 
