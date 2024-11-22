@@ -22,8 +22,8 @@
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
-constexpr size_t M = 128; // Number of rows of matrix
-constexpr size_t K = 128; // Number of columns of matrix
+constexpr size_t M = 64; // Number of rows of matrix
+constexpr size_t K = 16; // Number of columns of matrix
 constexpr size_t gmem_len = M * K;
 
 constexpr int m = 64; // subtile rows
