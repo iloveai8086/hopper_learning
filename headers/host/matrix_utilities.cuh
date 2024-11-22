@@ -134,7 +134,19 @@ void fill_tilewise(int *matrix, int rows, int cols, int tile_size_row, int tile_
     for (int j = 0; j < cols; j++)
     {
     	int id = (i / tile_size_row) * (cols / tile_size_col) + j / tile_size_col;
-      matrix[i * cols + j] = id % 10;
+      	matrix[i * cols + j] = id % 10;
+    }
+  }
+}
+
+void fill_tilewise(half *matrix, int rows, int cols, int tile_size_row, int tile_size_col)
+{
+  for (int i = 0; i < rows; i++)
+  {
+    for (int j = 0; j < cols; j++)
+    {
+    	int id = (i / tile_size_row) * (cols / tile_size_col) + j / tile_size_col;
+      	matrix[i * cols + j] = __float2half(id % 10);
     }
   }
 }

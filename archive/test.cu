@@ -33,7 +33,7 @@ static constexpr int buf_len = k * m;
 
 __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x, int y)
 {
-  __shared__ alignas(128) int smem_buffer[buf_len];
+  __shared__ alignas(128) half smem_buffer[buf_len];
   __shared__ barrier bar;
 
   if (threadIdx.x == 0)
@@ -88,18 +88,18 @@ __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x, int 
 int main()
 {
   // fill the host matrix
-  int host_tensor[gmem_len];
+  half host_tensor[gmem_len];
   fill_tilewise(host_tensor, M, K, 8, 8);
 
   // print_matrix(host_tensor, M, K);
 
   // copy host matrix to device
   int *tensor_ptr = nullptr;
-  cudaMalloc(&tensor_ptr, gmem_len * sizeof(int));
-  cudaMemcpy(tensor_ptr, host_tensor, gmem_len * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMalloc(&tensor_ptr, gmem_len * sizeof(half));
+  cudaMemcpy(tensor_ptr, host_tensor, gmem_len * sizeof(half), cudaMemcpyHostToDevice);
 
   // create tensor map for the matrix
-  CUtensorMap tensor_map = create_2d_tensor_map(M, K, m, k, tensor_ptr);
+  CUtensorMap tensor_map = create_2d_tensor_map_half(M, K, m, k, tensor_ptr);
 
   // launch kernel, select a tile coordinate
   // x (0 16 32 48) y (0 8 16 24) must be aligned with m and k
@@ -111,7 +111,7 @@ int main()
 
   // copy device matrix to host
   int host_gmem_tensor[gmem_len];
-  cudaMemcpy(host_gmem_tensor, tensor_ptr, gmem_len * sizeof(int), cudaMemcpyDeviceToHost);
+  cudaMemcpy(host_gmem_tensor, tensor_ptr, gmem_len * sizeof(half), cudaMemcpyDeviceToHost);
 
   // verify the results
   print_matrix(host_gmem_tensor, M, K);
