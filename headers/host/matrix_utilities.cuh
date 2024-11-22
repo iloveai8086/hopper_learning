@@ -34,7 +34,7 @@ void print_matrix(half *matrix, int rows, int cols)
   {
     for (int j = 0; j < cols; j++)
     {
-      printf("%f ", __half2float(matrix[i * cols + j]));
+      printf("%.0f ", __half2float(matrix[i * cols + j]));
     }
     printf("\n");
   }
