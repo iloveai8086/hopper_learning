@@ -133,7 +133,7 @@ CUtensorMap create_2d_tensor_map_half(uint64_t tensor_dim1, uint64_t tensor_dim2
       CUtensorMapL2promotion::CU_TENSOR_MAP_L2_PROMOTION_NONE,
       CUtensorMapFloatOOBfill::CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
 
-  // assert(res == CUDA_SUCCESS && "tensormap creation failed.");
+  assert(res == CUDA_SUCCESS && "tensormap creation failed.");
 
   return local_tensor_map;
 }

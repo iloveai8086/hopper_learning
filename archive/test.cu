@@ -27,7 +27,7 @@ constexpr size_t K = 128; // Number of columns of matrix
 constexpr size_t gmem_len = M * K;
 
 constexpr int m = 64; // subtile rows
-constexpr int k = 64;  // subtile columns
+constexpr int k = 16;  // subtile columns
 
 static constexpr int buf_len = k * m;
 
