@@ -46,8 +46,6 @@ __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x, int 
   uint64_t token;
   if (threadIdx.x == 0)
   {
-    // just to demonstrate using prefetch, completely unnecessary here
-    copy_async_2d_prefetch(&tensor_map, x, y);
     // call the loading api
     cde::cp_async_bulk_tensor_2d_global_to_shared(smem_buffer, &tensor_map, x, y, bar);
     token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(smem_buffer));
@@ -110,7 +108,7 @@ int main()
   cuda_check_error();
 
   // copy device matrix to host
-  int host_gmem_tensor[gmem_len];
+  half host_gmem_tensor[gmem_len];
   cudaMemcpy(host_gmem_tensor, tensor_ptr, gmem_len * sizeof(half), cudaMemcpyDeviceToHost);
 
   // verify the results
