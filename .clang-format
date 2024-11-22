@@ -1,0 +1,3 @@
+UseTab: Always         # Use tabs for indentation
+TabWidth: 4          # Number of spaces for a tab
+IndentWidth: 4     # Indentation size
