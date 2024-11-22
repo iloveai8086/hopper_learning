@@ -129,7 +129,7 @@ CUtensorMap create_2d_tensor_map_half(uint64_t tensor_dim1, uint64_t tensor_dim2
       box_size,    // const cuuint32_t *boxDim,
       elem_stride, // const cuuint32_t *elementStrides,
       CUtensorMapInterleave::CU_TENSOR_MAP_INTERLEAVE_NONE,
-      CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_32B,
+      CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_16B,
       CUtensorMapL2promotion::CU_TENSOR_MAP_L2_PROMOTION_NONE,
       CUtensorMapFloatOOBfill::CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
 
