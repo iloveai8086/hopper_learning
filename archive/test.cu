@@ -59,11 +59,11 @@ __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x, int 
 
   __syncthreads();
   
-  print the matrix
+  // print the matrix
   if (threadIdx.x == 0) {
     for (int r = 0; r < m; r++) {
 	  for (int c = 0; c < k; c++) {
-		printf("%d ", smem_buffer[r * k + c]);
+		printf("%f ", __half2float(smem_buffer[r * k + c]));
 	  }
 	  printf("\n");
 	}
