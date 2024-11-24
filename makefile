@@ -3,8 +3,7 @@ NVCC=/usr/local/cuda-12.4/bin/nvcc
 INCLUDES=-I./headers/device/ -I./headers/host/
 OPTIMIZATION=-O0
 LINKS=-lcudart -lcuda
-OUTPUT=bins/bin
-
+OUTPUT=bin
 
 all:
 	make test
@@ -13,42 +12,32 @@ all:
 test:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} archive/test.cu
 
-cluster:
+1:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/cluster.cu
 
-dense:
+2:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/wgmma_dense.cu
 
-sparse:
+3:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/wgmma_sparse.cu
 
-overlap:
-	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/overlap.cu
-
-gemm:
-	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/gemm.cu
-
-tma_1d:
+4:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/tma_1d.cu
 
-tma_2d:
+5:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/tma_2d.cu
 
-multicast:
+6:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/multicast.cu
 
-reduce:
+7:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/reduce_store.cu
-
-tma_1d_ptx:
-	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/tma_1d_ptx.cu
 	
-swizzle:
-	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/swizzle.cu
+8:
+	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/swizzle_manual.cu
 
-pull:
-	git pull
-	make all
+9:
+	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/swizzle.cu
 
 push:
 	git add .
@@ -59,4 +48,4 @@ run:
 	./${OUTPUT}
 
 clean:
-	rm -rf bins/*
+	rm -f ${OUTPUT}

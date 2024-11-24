@@ -5,7 +5,6 @@ to perform matrix multiplication
 
 #include <assert.h>
 #include <cuda.h>
-#include <cuda/barrier>
 #include <cuda_fp16.h>
 #include <iostream>
 #include <mma.h>
@@ -15,13 +14,6 @@ to perform matrix multiplication
 #include "matrix_utilities.cuh"
 #include "profile_utilities.cuh"
 #include "wgmma.cuh"
-#include "tma_tensor_map.cuh"
-
-// Suppress warning about barrier in shared memory
-#pragma nv_diag_suppress static_var_with_dynamic_init
-
-using barrier = cuda::barrier<cuda::thread_scope_block>;
-namespace cde = cuda::device::experimental;
 
 const int M = 64;
 const int N = 8;
@@ -30,7 +22,7 @@ const int K = 16;
 const int threads_per_block = 32 * 4; // 4 warps
 const int blocks = 1;
 
-__global__ void kernel(const __grid_constant__ CUtensorMap tensor_map, half *B, half *C) {
+__global__ void kernel(half *A, half *B, half *C) {
 	// metadata
 	const int tid = threadIdx.x;
 	const int warp_id = tid / 32;
@@ -40,21 +32,67 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map, half *B, 
 
 	__syncthreads();
 
-	__align__(128) __shared__ half A_shared[M * K];
+	__align__(16) __shared__ half A_shared[M * K];
 	__align__(16) __shared__ half B_shared[K * N];
 
-	__shared__ barrier bar;
-
-	if (threadIdx.x == 0) {
-		init(&bar, blockDim.x);
-	}
-	__syncthreads();
+	__align__(16) __shared__ half buffer[2 * 64];
 
 	// https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#asynchronous-multiply-and-accumulate-instruction-wgmma-mma-async
 	// 8x8 core blocks, we use one thread here to
 	// easy demonstrate the required layout
 	if (tid == 0) {
-		// load B
+		for (int i = 0; i < M; i++) {
+			for (int j = 0; j < K; j++) {
+				int block_x = i / 8;
+				int block_row = i % 8;
+				int block_y = j / 8;
+				int block_col = j % 8;
+				int block_id = block_x * 2 + block_y;
+				int offset = block_id * 64 + block_row * 8 + block_col;
+				A_shared[offset] = A[i * K + j];
+			}
+		}
+
+		// swizzle A
+		for (int pair = 0; pair < 8; pair++) {
+
+			for (int i = 0; i < 8; i++) {
+				if (i % 2 == 0) {
+					for (int j = 0; j < 8; j++) {
+						buffer[i * 8 + j] =
+							A_shared[pair * 128 + i / 2 * 8 + j];
+					}
+				} else {
+					for (int j = 0; j < 8; j++) {
+						buffer[i * 8 + j] =
+							A_shared[pair * 128 + 64 + i / 2 * 8 + j];
+					}
+				}
+			}
+
+			for (int i = 0; i < 8; i++) {
+				if (i % 2 == 0) {
+					for (int j = 0; j < 8; j++) {
+						buffer[64 + i * 8 + j] =
+							A_shared[pair * 128 + 64 + 32 + i / 2 * 8 + j];
+					}
+				} else {
+					for (int j = 0; j < 8; j++) {
+						buffer[64 + i * 8 + j] =
+							A_shared[pair * 128 + 32 + i / 2 * 8 + j];
+					}
+				}
+			}
+
+			// write back to A_shared
+			for (int row = 0; row < 16; row++) {
+				for (int col = 0; col < 8; col++) {
+					A_shared[pair * 128 + row * 8 + col] =
+						buffer[row * 8 + col];
+				}
+			}
+		}
+
 		for (int i = 0; i < K; i++) {
 			for (int j = 0; j < N; j++) {
 				int block_x = i / 8;
@@ -67,19 +105,6 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map, half *B, 
 			}
 		}
 	}
-
-	// Load A
-	uint64_t token;
-	if (tid == 0) {
-		// call the loading api
-		cde::cp_async_bulk_tensor_2d_global_to_shared(A_shared, &tensor_map,
-													  0, 0, bar);
-		token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(A_shared));
-	} else {
-		token = bar.arrive();
-	}
-
-	bar.wait(cuda::std::move(token));
 
 	__syncthreads();
 
@@ -150,9 +175,7 @@ int main() {
 	cudaMemcpy(d_A, h_A, M * K * sizeof(half), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_B, h_B, K * N * sizeof(half), cudaMemcpyHostToDevice);
 
-	CUtensorMap tensor_map = create_2d_tensor_map_half(M, K, M, K, d_A);
-
-	kernel<<<blocks, threads_per_block>>>(tensor_map, d_B, d_C);
+	kernel<<<blocks, threads_per_block>>>(d_A, d_B, d_C);
 
 	cuda_check_error();
 
