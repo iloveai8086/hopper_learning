@@ -151,7 +151,7 @@ int main() {
 	cudaMemcpy(d_A, h_A, M * K * sizeof(half), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_B, h_B, K * N * sizeof(half), cudaMemcpyHostToDevice);
 
-	CUtensorMap tensor_map = create_2d_tensor_map_half(M, K, M, K, d_A);
+	CUtensorMap tensor_map = create_2d_tensor_map_half<1>(M, K, M, K, d_A);
 
 	kernel<<<blocks, threads_per_block>>>(tensor_map, d_B, d_C);
 

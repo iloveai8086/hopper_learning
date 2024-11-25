@@ -98,6 +98,7 @@ CUtensorMap create_2d_tensor_map(uint64_t tensor_dim1, uint64_t tensor_dim2, uin
   return local_tensor_map;
 }
 
+template<int swizzle>
 CUtensorMap create_2d_tensor_map_half(uint64_t tensor_dim1, uint64_t tensor_dim2, uint32_t tile_dim1, uint32_t tile_dim2, void *tensor_ptr)
 {
   // https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html
@@ -129,7 +130,7 @@ CUtensorMap create_2d_tensor_map_half(uint64_t tensor_dim1, uint64_t tensor_dim2
       box_size,    // const cuuint32_t *boxDim,
       elem_stride, // const cuuint32_t *elementStrides,
       CUtensorMapInterleave::CU_TENSOR_MAP_INTERLEAVE_NONE,
-      CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_32B,
+      swizzle ? CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_32B : CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_NONE,
       CUtensorMapL2promotion::CU_TENSOR_MAP_L2_PROMOTION_NONE,
       CUtensorMapFloatOOBfill::CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
 

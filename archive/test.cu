@@ -1,20 +1,21 @@
-// This code uses TMA's 2d load to load a matrix's tile to
-// shared memory and then change the value in the
-// shared memory and uses TMA's store to store the
-// tile back to global memory. We print the result matrix to prove the
-// changes are done
+/*
+This code demonstrates how to use the dense wgmma instructions
+to perform matrix multiplication
+*/
 
-// note very carefully the order of the m and k coordinate in the api calls
-// and note the alignment requirement of the coordinatess
-
+#include <assert.h>
 #include <cuda.h>
 #include <cuda/barrier>
+#include <cuda_fp16.h>
+#include <iostream>
+#include <mma.h>
+#include <random>
 #include <stdio.h>
 
 #include "matrix_utilities.cuh"
 #include "profile_utilities.cuh"
-#include "tma.cuh"
 #include "tma_tensor_map.cuh"
+#include "wgmma.cuh"
 
 // Suppress warning about barrier in shared memory
 #pragma nv_diag_suppress static_var_with_dynamic_init
@@ -22,18 +23,29 @@
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
-constexpr size_t M = 64; // Number of rows of matrix
-constexpr size_t K = 16; // Number of columns of matrix
-constexpr size_t gmem_len = M * K;
+const int M = 64;
+const int N = 8;
+const int K = 16;
 
-constexpr int m = 64; // subtile rows
-constexpr int k = 16; // subtile columns
+const int threads_per_block = 32 * 4; // 4 warps
+const int blocks = 1;
 
-static constexpr int buf_len = k * m;
+__global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
+					   const __grid_constant__ CUtensorMap tensor_map_b,
+					   half *C) {
 
-__global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x,
-					 int y) {
-	__shared__ alignas(128) half smem_buffer[buf_len];
+	// metadata
+	const int tid = threadIdx.x;
+	const int warp_id = tid / 32;
+	const int lane_id = tid % 32;
+	const int group_id = lane_id >> 2;
+	const int lane_in_group = lane_id & 3;
+
+	__syncthreads();
+
+	__align__(128) __shared__ half A_shared[M * K];
+	__align__(16) __shared__ half B_shared[K * N];
+
 	__shared__ barrier bar;
 
 	if (threadIdx.x == 0) {
@@ -41,13 +53,34 @@ __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x,
 	}
 	__syncthreads();
 
-	// Load data:
+	// https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#asynchronous-multiply-and-accumulate-instruction-wgmma-mma-async
+	// 8x8 core blocks, we use one thread here to
+	// easy demonstrate the required layout
+	// if (tid == 0) {
+	// 	// load B
+	// 	for (int i = 0; i < K; i++) {
+	// 		for (int j = 0; j < N; j++) {
+	// 			int block_x = i / 8;
+	// 			int block_row = i % 8;
+	// 			int block_y = j / 8;
+	// 			int block_col = j % 8;
+	// 			int block_id = block_x * 1 + block_y;
+	// 			int offset = block_id * 64 + block_row * 8 + block_col;
+	// 			B_shared[offset] = B[i * N + j];
+	// 		}
+	// 	}
+	// }
+
+	// Load A
 	uint64_t token;
-	if (threadIdx.x == 0) {
+	if (tid == 0) {
 		// call the loading api
-		cde::cp_async_bulk_tensor_2d_global_to_shared(smem_buffer, &tensor_map,
-													  x, y, bar);
-		token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(smem_buffer));
+		cde::cp_async_bulk_tensor_2d_global_to_shared(A_shared, &tensor_map, 0,
+													  0, bar);
+		cde::cp_async_bulk_tensor_2d_global_to_shared(B_shared, &tensor_map_b,
+													  0, 0, bar);
+		token = cuda::device::barrier_arrive_tx(
+			bar, 1, sizeof(A_shared) + sizeof(B_shared));
 	} else {
 		token = bar.arrive();
 	}
@@ -56,63 +89,89 @@ __global__ void test(const __grid_constant__ CUtensorMap tensor_map, int x,
 
 	__syncthreads();
 
-	// print the matrix
-	if (threadIdx.x == 0) {
-		for (int r = 0; r < m; r++) {
-			for (int c = 0; c < k; c++) {
-				printf("%f ", __half2float(smem_buffer[r * k + c]));
-			}
-			printf("\n");
-		}
-	}
+	// create descriptors for the matrices
+	GmmaDescriptor desc_a = make_desc_a<half *, 3>(A_shared);
+	GmmaDescriptor desc_b = make_desc_b(B_shared);
 
-	cde::fence_proxy_async_shared_cta();
-	__syncthreads();
+	// accumulator
+	uint32_t c[2] = {};
 
-	// Write back to global memory:
-	if (threadIdx.x == 0) {
-		cde::cp_async_bulk_tensor_2d_shared_to_global(&tensor_map, x, y,
-													  smem_buffer);
-		cde::cp_async_bulk_commit_group();
-		cde::cp_async_bulk_wait_group_read<0>();
-	}
+	// called whenever the accumulator is accessed
+	warpgroup_arrive();
+
+	// wgmma.mma_async.sync.aligned.shape.dtype.f16.f16  d, a-desc, b-desc,
+	// scale-d, imm-scale-a, imme-scale-b, imm-trans-a, imm-trans-b;
+	// wgmma.mma_async.sync.aligned.shape.dtype.f16.f16  d, a, b-desc, scale-d,
+	// imm-scale-a, imme-scale-b, imm-trans-b;
+	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
+				 "{%0, %1}, " // accumulator
+				 "%2, %3, "	  // matrix a descriptor
+				 "1, "		  // 0 => D = A*B, 1 => D = D + A*B
+				 "1, 1, " // 0 => no scaling, 1 => scaling, scaling means times
+						  // -1 to a or b
+				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
+				 : "+r"(c[0]), "+r"(c[1])
+				 : "l"(desc_a), "l"(desc_b));
+
+	// commit, start the computation
+	warpgroup_commit_batch();
+
+	// wait for the previous commit to finish
+	warpgroup_wait<0>();
+
+	// thread fence needed for async operations
 	__threadfence();
-	__syncthreads();
+
+	warpgroup_arrive();
+
+	uint32_t *C_ptr = reinterpret_cast<uint32_t *>(C);
+
+	int offset1 = warp_id * 16 * 4 + group_id * 4 + lane_in_group;
+	int offset2 = warp_id * 16 * 4 + (group_id + 8) * 4 + lane_in_group;
+
+	// write back to global memory
+	C_ptr[offset1] = c[0];
+	C_ptr[offset2] = c[1];
 }
 
 int main() {
-	// fill the host matrix
-	half host_tensor[gmem_len];
-	fill_tilewise(host_tensor, M, K, 8, 8);
 
-	// print_matrix(host_tensor, M, K);
+	half *d_C;
+	half h_C[M * N];
+	half h_CPU[M * N];
+	half h_A[M * K];
+	half h_B[K * N];
 
-	// copy host matrix to device
-	int *tensor_ptr = nullptr;
-	cudaMalloc(&tensor_ptr, gmem_len * sizeof(half));
-	cudaMemcpy(tensor_ptr, host_tensor, gmem_len * sizeof(half),
-			   cudaMemcpyHostToDevice);
+	fill_fixed(h_C, M, N, 0);
 
-	// create tensor map for the matrix
-	CUtensorMap tensor_map = create_2d_tensor_map_half(M, K, m, k, tensor_ptr);
+	fill_random(h_A, M, K);
+	fill_random(h_B, K, N);
 
-	// launch kernel, select a tile
-	// coordinate x (0 16 32 48) y (0 8
-	// 16 24) must be aligned with m
-	// and k
-	int coordinate_m = 0;
-	int coordinate_k = 0;
-	test<<<1, 128>>>(tensor_map, coordinate_k, coordinate_m);
+	half *d_A, *d_B;
+
+	cudaMalloc((void **)&d_A, M * K * sizeof(half));
+	cudaMalloc((void **)&d_B, K * N * sizeof(half));
+	cudaMalloc((void **)&d_C, M * N * sizeof(half));
+
+	cudaMemcpy(d_A, h_A, M * K * sizeof(half), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_B, h_B, K * N * sizeof(half), cudaMemcpyHostToDevice);
+
+	CUtensorMap tensor_map = create_2d_tensor_map_half<1>(M, K, M, K, d_A);
+	CUtensorMap tensor_map_b = create_2d_tensor_map_half<0>(K, N, K, N, d_B);
+
+	kernel<<<blocks, threads_per_block>>>(tensor_map, tensor_map_b, d_C);
 
 	cuda_check_error();
 
-	// copy device matrix to host
-	half host_gmem_tensor[gmem_len];
-	cudaMemcpy(host_gmem_tensor, tensor_ptr, gmem_len * sizeof(half),
-			   cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_C, d_C, M * N * sizeof(half), cudaMemcpyDeviceToHost);
 
-	// verify the results
-	print_matrix(host_gmem_tensor, M, K);
+	// print_matrix(h_C, M, N);
+
+	CPU_gemm(h_A, h_B, h_CPU, M, N, K);
+
+	compare_matrices(h_CPU, h_C, M, N);
+
+	// print_differnce(h_C, h_CPU, M, N, 0.0f);
 
 	return 0;
 }
