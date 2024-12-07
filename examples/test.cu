@@ -96,7 +96,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 				 : "l"(desc_a), "l"(desc_b));
 	
 	// second step
-	desc_a = make_desc_a_test<half *, 2>(A_shared + 16);
+	desc_a = make_desc_a_test<half *, 3>(A_shared + 16);
 	desc_b = make_desc_b(B_shared + 32 * 4);
 	
 	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
