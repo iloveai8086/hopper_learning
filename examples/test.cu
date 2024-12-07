@@ -72,7 +72,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	__syncthreads();
 
 	// create descriptors for the matrices
-	GmmaDescriptor desc_a = make_desc_a<half *>(A_shared);
+	GmmaDescriptor desc_a = make_desc_a<half *, 3>(A_shared);
 	GmmaDescriptor desc_b = make_desc_b(B_shared);
 
 	// accumulator
@@ -138,7 +138,7 @@ int main() {
 	cudaMemcpy(d_A, h_A, M * K * sizeof(half), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_B, h_B, K * N * sizeof(half), cudaMemcpyHostToDevice);
 
-	CUtensorMap tensor_map = create_2d_tensor_map_half<0>(M, K, M, K, d_A);
+	CUtensorMap tensor_map = create_2d_tensor_map_half<1>(M, K, M, K, d_A);
 	CUtensorMap tensor_map_b = create_2d_tensor_map_half<0>(K, N, K, N, d_B);
 
 	kernel<<<blocks, threads_per_block>>>(tensor_map, tensor_map_b, d_C);
