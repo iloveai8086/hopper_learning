@@ -72,7 +72,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	__syncthreads();
 
 	// create descriptors for the matrices
-	GmmaDescriptor desc_a = make_desc_a<half *, 3>(A_shared);
+	GmmaDescriptor desc_a = make_desc_a_test<half *, 2>(A_shared);
 	GmmaDescriptor desc_b = make_desc_b(B_shared);
 
 	// accumulator
