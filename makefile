@@ -38,6 +38,9 @@ test:
 
 9:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/9_swizzle.cu
+	
+10:
+	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/10_tma_and_wgmma.cu
 
 push:
 	git add .
