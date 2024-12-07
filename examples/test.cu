@@ -25,7 +25,7 @@ namespace cde = cuda::device::experimental;
 
 const int M = 64;
 const int N = 8;
-const int K = 16;
+const int K = 32;
 
 const int threads_per_block = 32 * 4; // 4 warps
 const int blocks = 1;
