@@ -126,8 +126,9 @@ int main() {
 
 	fill_fixed(h_C, M, N, 0);
 
-	fill_random(h_A, M, K);
-	fill_random(h_B, K, N);
+	// fill_random(h_A, M, K);
+	fill_tilewise(h_A, M, K, 8, 8);
+	fill_fixed(h_B, K, N, 1);
 
 	half *d_A, *d_B;
 
@@ -147,13 +148,13 @@ int main() {
 
 	cudaMemcpy(h_C, d_C, M * N * sizeof(half), cudaMemcpyDeviceToHost);
 
-	print_matrix(h_C, M, N);
-
 	CPU_gemm(h_A, h_B, h_CPU, M, N, K);
 
 	compare_matrices(h_CPU, h_C, M, N);
+	
+	print_matrix(h_C, M, N);
 
-	// print_differnce(h_C, h_CPU, M, N, 0.0f);
+	print_differnce(h_C, h_CPU, M, N, 0.0f);
 
 	return 0;
 }
