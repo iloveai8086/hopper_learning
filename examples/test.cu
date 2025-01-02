@@ -92,7 +92,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 				 "1, 1, " // 0 => no scaling, 1 => scaling, scaling means times
 						  // -1 to a or b
 				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
-				 : "+r"(c[0]), "+r"(c[1])
+				 : "+r"(c[0]), "+r"(c[1]), "+r"(c[2]), "+r"(c[3])
 				 : "l"(desc_a), "l"(desc_b));
 	
 	// second step
@@ -106,7 +106,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 				 "1, 1, " // 0 => no scaling, 1 => scaling, scaling means times
 						  // -1 to a or b
 				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
-				 : "+r"(c[0]), "+r"(c[1])
+				 : "+r"(c[0]), "+r"(c[1]), "+r"(c[2]), "+r"(c[3])
 				 : "l"(desc_a), "l"(desc_b));
 	
 	warpgroup_arrive();
