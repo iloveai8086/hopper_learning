@@ -24,7 +24,7 @@ using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
 const int M = 64;
-const int N = 8;
+const int N = 16;
 const int K = 16;
 
 const int threads_per_block = 32 * 4; // 4 warps
@@ -76,7 +76,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	GmmaDescriptor desc_b = make_desc_b(B_shared);
 
 	// accumulator
-	uint32_t c[2] = {};
+	uint32_t c[4] = {};
 
 	// called whenever the accumulator is accessed
 	warpgroup_arrive();
@@ -86,13 +86,13 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	// wgmma.mma_async.sync.aligned.shape.dtype.f16.f16  d, a, b-desc, scale-d,
 	// imm-scale-a, imme-scale-b, imm-trans-b;
 	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
-				 "{%0, %1}, " // accumulator
-				 "%2, %3, "	  // matrix a descriptor
+				 "{%0, %1, %2, %3}, " // accumulator
+				 "%4, %5, "	  // matrix a descriptor
 				 "1, "		  // 0 => D = A*B, 1 => D = D + A*B
 				 "1, 1, " // 0 => no scaling, 1 => scaling, scaling means times
 						  // -1 to a or b
 				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
-				 : "+r"(c[0]), "+r"(c[1])
+				 : "+r"(c[0]), "+r"(c[1]), "+r"(c[2]), "+r"(c[3])
 				 : "l"(desc_a), "l"(desc_b));
 
 	// commit, start the computation
@@ -114,6 +114,8 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	// write back to global memory
 	C_ptr[offset1] = c[0];
 	C_ptr[offset2] = c[1];
+	C_ptr[offset1 + 4] = c[2];
+	C_ptr[offset2 + 4] = c[3];
 }
 
 int main() {
@@ -151,10 +153,10 @@ int main() {
 	CPU_gemm(h_A, h_B, h_CPU, M, N, K);
 
 	compare_matrices(h_CPU, h_C, M, N);
-	
-	print_matrix(h_C, M, N);
 
 	print_differnce(h_C, h_CPU, M, N, 0.0f);
+	
+	print_matrix(h_C, M, N);
 
 	return 0;
 }
