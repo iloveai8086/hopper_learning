@@ -73,7 +73,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 
 	// create descriptors for the matrices
 	GmmaDescriptor desc_a = make_desc_a<half *, 3>(A_shared);
-	GmmaDescriptor desc_b = make_desc_b(B_shared);
+	GmmaDescriptor desc_b = make_desc_b<half *, 3>(B_shared);
 
 	// accumulator
 	uint32_t c[4] = {};
@@ -130,8 +130,8 @@ int main() {
 
 	fill_random(h_A, M, K);
 	// fill_tilewise(h_A, M, K, 8, 8);
-	fill_fixed(h_B, K, N, 1);
-	// fill_random(h_B, K, N);
+	// fill_fixed(h_B, K, N, 1);
+	fill_random(h_B, K, N);
 
 	half *d_A, *d_B;
 
@@ -143,7 +143,7 @@ int main() {
 	cudaMemcpy(d_B, h_B, K * N * sizeof(half), cudaMemcpyHostToDevice);
 
 	CUtensorMap tensor_map = create_2d_tensor_map_half<1>(M, K, M, K, d_A);
-	CUtensorMap tensor_map_b = create_2d_tensor_map_half<0>(K, N, K, N, d_B);
+	CUtensorMap tensor_map_b = create_2d_tensor_map_half<1>(K, N, K, N, d_B);
 
 	kernel<<<blocks, threads_per_block>>>(tensor_map, tensor_map_b, d_C);
 
