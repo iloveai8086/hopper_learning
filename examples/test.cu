@@ -128,9 +128,10 @@ int main() {
 
 	fill_fixed(h_C, M, N, 0);
 
-	// fill_random(h_A, M, K);
-	fill_tilewise(h_A, M, K, 8, 8);
+	fill_random(h_A, M, K);
+	// fill_tilewise(h_A, M, K, 8, 8);
 	fill_fixed(h_B, K, N, 1);
+	// fill_random(h_B, K, N);
 
 	half *d_A, *d_B;
 
@@ -152,11 +153,11 @@ int main() {
 
 	CPU_gemm(h_A, h_B, h_CPU, M, N, K);
 
-	compare_matrices(h_CPU, h_C, M, N);
-
 	print_differnce(h_C, h_CPU, M, N, 0.0f);
 	
 	print_matrix(h_C, M, N);
+	
+	compare_matrices(h_CPU, h_C, M, N);
 
 	return 0;
 }
