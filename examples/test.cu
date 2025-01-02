@@ -87,7 +87,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	// imm-scale-a, imme-scale-b, imm-trans-b;
 	asm volatile("wgmma.mma_async.sync.aligned.m64n16k16.f16.f16.f16 "
 				 "{%0, %1, %2, %3}, " // accumulator
-				 "%2, %3, "	  // matrix a descriptor
+				 "%4, %5, "	  // matrix a descriptor
 				 "1, "		  // 0 => D = A*B, 1 => D = D + A*B
 				 "1, 1, " // 0 => no scaling, 1 => scaling, scaling means times
 						  // -1 to a or b
@@ -101,7 +101,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	
 	asm volatile("wgmma.mma_async.sync.aligned.m64n16k16.f16.f16.f16 "
 				 "{%0, %1, %2, %3}, " // accumulator
-				 "%2, %3, "	  // matrix a descriptor
+				 "%4, %5, "	  // matrix a descriptor
 				 "1, "		  // 0 => D = A*B, 1 => D = D + A*B
 				 "1, 1, " // 0 => no scaling, 1 => scaling, scaling means times
 						  // -1 to a or b
