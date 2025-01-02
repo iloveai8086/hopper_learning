@@ -85,7 +85,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	// scale-d, imm-scale-a, imme-scale-b, imm-trans-a, imm-trans-b;
 	// wgmma.mma_async.sync.aligned.shape.dtype.f16.f16  d, a, b-desc, scale-d,
 	// imm-scale-a, imme-scale-b, imm-trans-b;
-	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
+	asm volatile("wgmma.mma_async.sync.aligned.m64n16k16.f16.f16.f16 "
 				 "{%0, %1, %2, %3}, " // accumulator
 				 "%4, %5, "	  // matrix a descriptor
 				 "1, "		  // 0 => D = A*B, 1 => D = D + A*B
@@ -108,8 +108,8 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 
 	uint32_t *C_ptr = reinterpret_cast<uint32_t *>(C);
 
-	int offset1 = warp_id * 16 * 4 + group_id * 4 + lane_in_group;
-	int offset2 = warp_id * 16 * 4 + (group_id + 8) * 4 + lane_in_group;
+	int offset1 = warp_id * 16 * 8 + group_id * 8 + lane_in_group;
+	int offset2 = warp_id * 16 * 8 + (group_id + 8) * 8 + lane_in_group;
 
 	// write back to global memory
 	C_ptr[offset1] = c[0];
