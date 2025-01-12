@@ -165,7 +165,7 @@ int main() {
 
 	cudaMemcpy(h_C, d_C, M * N * sizeof(half), cudaMemcpyDeviceToHost);
 
-	// print_matrix(h_C, M, N);
+	print_matrix<5>(h_A2, M, K_A);
 
 	CPU_gemm(h_A, h_B, h_CPU, M, N, K);
 
