@@ -82,7 +82,7 @@ __global__ void kernel(
 
 	// create descriptors
 	GmmaDescriptor desc_a = make_desc<half *, 8, 16, 3>(A_shared);
-	GmmaDescriptor desc_b = make_desc<half *, 8, 16, 0>(B_shared);
+	GmmaDescriptor desc_b = make_desc<half *, 8, 8, 0>(B_shared);
 
 	// accumulator
 	uint32_t c[2] = {};
