@@ -178,7 +178,7 @@ int main() {
 	return 0;
 }
 
-void MMA_SP_WRAPPER(uint32_t * c, GmmaDescriptor desc_a, GmmaDescriptor desc_b, uint32_t metadata) {
+__device__ void MMA_SP_WRAPPER(uint32_t * c, GmmaDescriptor desc_a, GmmaDescriptor desc_b, uint32_t metadata) {
 	asm volatile("wgmma.mma_sync.sp.aligned.m64n8k32.f16.f16.f16 "
 				 "{%0, %1}, " // c
 				 "%2, %3, "	  // desc A, B
