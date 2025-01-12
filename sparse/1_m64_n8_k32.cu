@@ -22,7 +22,10 @@ const int N = 8;
 const int K = 32;
 
 // 2:4 format
-const int K2 = 16;
+const int K_A = 16;
+
+const int threads_per_block = 32 * 4; // 4 warps
+const int blocks = 1;
 
 __global__ void kernel(half *A, half *B, half *C, u_int32_t *metadata_array) {
 	const int tid = threadIdx.x;
@@ -32,21 +35,21 @@ __global__ void kernel(half *A, half *B, half *C, u_int32_t *metadata_array) {
 	const int lane_in_group = lane_id & 3;
 	const int lane_in_work_group = lane_in_group % 2;
 
-	__align__(16) __shared__ half A_shared[M * K2];
+	__align__(16) __shared__ half A_shared[M * K_A];
 	__align__(16) __shared__ half B_shared[K * N];
 
 	// use one thread to load so it's easier to tell the layout
 	// refer to the ptx menu for the layout of the shared memory
 	if (tid == 0) {
 		for (int i = 0; i < M; i++) {
-			for (int j = 0; j < K2; j++) {
+			for (int j = 0; j < K_A; j++) {
 				int block_x = i / 8;
 				int block_row = i % 8;
 				int block_y = j / 8;
 				int block_col = j % 8;
 				int block_id = block_x * 2 + block_y;
 				int offset = block_id * 64 + block_row * 8 + block_col;
-				A_shared[offset] = A[i * K2 + j];
+				A_shared[offset] = A[i * K_A + j];
 			}
 		}
 
@@ -73,8 +76,8 @@ __global__ void kernel(half *A, half *B, half *C, u_int32_t *metadata_array) {
 	__syncthreads();
 
 	// create descriptors
-	GmmaDescriptor desc_a = make_desc_a(A_shared);
-	GmmaDescriptor desc_b = make_desc_b(B_shared);
+	GmmaDescriptor desc_a = make_desc<half *, 8, 16, 0>(A_shared);
+	GmmaDescriptor desc_b = make_desc<half *, 8, 16, 0>(B_shared);
 
 	// accumulator
 	uint32_t c[2] = {};
@@ -124,7 +127,7 @@ int main() {
 	half h_C[M * N];
 	half h_CPU[M * N];
 	half h_A[M * K];
-	half h_A2[M * K2];
+	half h_A2[M * K_A];
 	half h_B[K * N];
 
 	fill_24(h_A, M, K);
@@ -135,15 +138,15 @@ int main() {
 	// extract the non-zeros in each 2:4 tile to a compressed matrix A2
 	compress24(h_A, h_A2, M, K);
 
-	// print_matrix(h_A2, M, K2);
+	// print_matrix(h_A2, M, K_A);
 
 	half *d_A, *d_B;
 
-	cudaMalloc((void **)&d_A, M * K2 * sizeof(half));
+	cudaMalloc((void **)&d_A, M * K_A * sizeof(half));
 	cudaMalloc((void **)&d_B, K * N * sizeof(half));
 	cudaMalloc((void **)&d_C, M * N * sizeof(half));
 
-	cudaMemcpy(d_A, h_A2, M * K2 * sizeof(half), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_A, h_A2, M * K_A * sizeof(half), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_B, h_B, K * N * sizeof(half), cudaMemcpyHostToDevice);
 
 	int metadata_size = (M / 16) * (K / 16) * 8;
@@ -156,7 +159,7 @@ int main() {
 	cudaMemcpy(d_metadata, metadata_array, metadata_size * sizeof(u_int32_t),
 			   cudaMemcpyHostToDevice);
 
-	kernel<<<1, 128>>>(d_A, d_B, d_C, d_metadata);
+	kernel<<<blocks, threads_per_block>>>(d_A, d_B, d_C, d_metadata);
 
 	cuda_check_error();
 
