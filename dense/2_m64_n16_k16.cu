@@ -30,7 +30,7 @@ const int K = 16;
 const int threads_per_block = 32 * 4; // 4 warps
 const int blocks = 1;
 
-__global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
+__global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 					   const __grid_constant__ CUtensorMap tensor_map_b,
 					   half *C) {
 
@@ -57,7 +57,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	uint64_t token;
 	if (tid == 0) {
 		// call the loading api
-		cde::cp_async_bulk_tensor_2d_global_to_shared(A_shared, &tensor_map, 0,
+		cde::cp_async_bulk_tensor_2d_global_to_shared(A_shared, &tensor_map_a, 0,
 													  0, bar);
 		cde::cp_async_bulk_tensor_2d_global_to_shared(B_shared, &tensor_map_b,
 													  0, 0, bar);
@@ -142,10 +142,10 @@ int main() {
 	cudaMemcpy(d_A, h_A, M * K * sizeof(half), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_B, h_B, K * N * sizeof(half), cudaMemcpyHostToDevice);
 
-	CUtensorMap tensor_map = create_2d_tensor_map_half<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_32B>(M, K, M, K, d_A);
-	CUtensorMap tensor_map_b = create_2d_tensor_map_half<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_32B>(K, N, K, N, d_B);
+	CUtensorMap tensor_map_a = create_2d_tensor_map<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_32B>(M, K, M, K, d_A);
+	CUtensorMap tensor_map_b = create_2d_tensor_map<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_32B>(K, N, K, N, d_B);
 
-	kernel<<<blocks, threads_per_block>>>(tensor_map, tensor_map_b, d_C);
+	kernel<<<blocks, threads_per_block>>>(tensor_map_a, tensor_map_b, d_C);
 
 	cuda_check_error();
 
