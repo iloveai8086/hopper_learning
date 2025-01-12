@@ -68,7 +68,7 @@ CUtensorMap create_2d_tensor_map(uint64_t tensor_dim1, uint64_t tensor_dim2, uin
   uint64_t size[rank] = {tensor_dim2, tensor_dim1};
   // The stride is the number of bytes to traverse from the first element of one row to the next.
   // It must be a multiple of 16.
-  uint64_t stride[rank - 1] = {tensor_dim2 * sizeof(int)};
+  uint64_t stride[rank - 1] = {tensor_dim2 * sizeof(T)};
   // The box_size is the size of the shared memory buffer that is used as the
   // destination of a TMA transfer.
   uint32_t box_size[rank] = {tile_dim2, tile_dim1};
@@ -82,7 +82,7 @@ CUtensorMap create_2d_tensor_map(uint64_t tensor_dim1, uint64_t tensor_dim2, uin
   // Create the tensor descriptor.
   CUresult res = cuTensorMapEncodeTiled(
       &local_tensor_map, // CUtensorMap *tensorMap,
-      CUtensorMapDataType::CU_TENSOR_MAP_DATA_TYPE_INT32,
+      type,
       rank,        // cuuint32_t tensorRank,
       tensor_ptr,  // void *globalAddress,
       size,        // const cuuint64_t *globalDim,
@@ -90,7 +90,7 @@ CUtensorMap create_2d_tensor_map(uint64_t tensor_dim1, uint64_t tensor_dim2, uin
       box_size,    // const cuuint32_t *boxDim,
       elem_stride, // const cuuint32_t *elementStrides,
       CUtensorMapInterleave::CU_TENSOR_MAP_INTERLEAVE_NONE,
-      CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_NONE,
+      swizzle,
       CUtensorMapL2promotion::CU_TENSOR_MAP_L2_PROMOTION_NONE,
       CUtensorMapFloatOOBfill::CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
 
