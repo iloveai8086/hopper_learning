@@ -22,7 +22,7 @@ Sparse means matrix A follows a 2:4 format
 #pragma nv_diag_suppress static_var_with_dynamic_init
 
 const int M = 256;
-const int N = 16;
+const int N = 32;
 const int K = 64;
 
 // 2:4 format
