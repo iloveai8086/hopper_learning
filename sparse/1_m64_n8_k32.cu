@@ -12,9 +12,11 @@ Sparse means matrix A follows a 2:4 format
 #include <mma.h>
 #include <random>
 #include <stdio.h>
+#include <cuda/barrier>
 
 #include "matrix_utilities.cuh"
 #include "profile_utilities.cuh"
+#include "tma_tensor_map.cuh"
 #include "wgmma.cuh"
 
 const int M = 64;
@@ -27,7 +29,12 @@ const int K_A = 16;
 const int threads_per_block = 32 * 4; // 4 warps
 const int blocks = 1;
 
-__global__ void kernel(half *A, half *B, half *C, u_int32_t *metadata_array) {
+__global__ void kernel(
+                        half *A,
+                        const __grid_constant__ CUtensorMap tensor_map_b,
+                        half *C,
+                        u_int32_t *metadata_array) {
+
 	const int tid = threadIdx.x;
 	const int warp_id = tid / 32;
 	const int lane_id = tid % 32;
@@ -35,9 +42,31 @@ __global__ void kernel(half *A, half *B, half *C, u_int32_t *metadata_array) {
 	const int lane_in_group = lane_id & 3;
 	const int lane_in_work_group = lane_in_group % 2;
 
-	__align__(16) __shared__ half A_shared[M * K_A];
+	__align__(128) __shared__ half A_shared[M * K_A];
 	__align__(16) __shared__ half B_shared[K * N];
 
+	__shared__ barrier bar;
+
+	if (threadIdx.x == 0) {
+		init(&bar, blockDim.x);
+	}
+	__syncthreads();
+
+	uint64_t token;
+	if (tid == 0) {
+		// call the loading api
+		// cde::cp_async_bulk_tensor_2d_global_to_shared(A_shared, &tensor_map_a, 0,
+		// 											  0, bar);
+		cde::cp_async_bulk_tensor_2d_global_to_shared(B_shared, &tensor_map_b,
+													  0, 0, bar);
+		token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(B_shared));
+	} else {
+		token = bar.arrive();
+	}
+
+	bar.wait(cuda::std::move(token));
+
+	
 	// use one thread to load so it's easier to tell the layout
 	// refer to the ptx menu for the layout of the shared memory
 	if (tid == 0) {
@@ -50,18 +79,6 @@ __global__ void kernel(half *A, half *B, half *C, u_int32_t *metadata_array) {
 				int block_id = block_x * 2 + block_y;
 				int offset = block_id * 64 + block_row * 8 + block_col;
 				A_shared[offset] = A[i * K_A + j];
-			}
-		}
-
-		for (int i = 0; i < K; i++) {
-			for (int j = 0; j < N; j++) {
-				int block_x = i / 8;
-				int block_row = i % 8;
-				int block_y = j / 8;
-				int block_col = j % 8;
-				int block_id = block_x * 1 + block_y;
-				int offset = block_id * 64 + block_row * 8 + block_col;
-				B_shared[offset] = B[i * N + j];
 			}
 		}
 	}
@@ -157,13 +174,15 @@ int main() {
 	cudaMemcpy(d_metadata, metadata_array, metadata_size * sizeof(u_int32_t),
 			   cudaMemcpyHostToDevice);
 
-	kernel<<<blocks, threads_per_block>>>(d_A, d_B, d_C, d_metadata);
+	CUtensorMap tensor_map_b = create_2d_tensor_map<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_NONE>(K, N, K, N, d_B);
+
+	kernel<<<blocks, threads_per_block>>>(d_A, tensor_map_b, d_C, d_metadata);
 
 	cuda_check_error();
 
 	cudaMemcpy(h_C, d_C, M * N * sizeof(half), cudaMemcpyDeviceToHost);
 
-	print_matrix<5>(h_A2, M, K_A);
+	// print_matrix<5>(h_A2, M, K_A);
 
 	CPU_gemm(h_A, h_B, h_CPU, M, N, K);
 

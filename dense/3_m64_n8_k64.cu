@@ -53,7 +53,6 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 	}
 	__syncthreads();
 
-	// Load A
 	uint64_t token;
 	if (tid == 0) {
 		// call the loading api
