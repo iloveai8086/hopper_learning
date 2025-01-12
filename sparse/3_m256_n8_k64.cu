@@ -21,7 +21,7 @@ Sparse means matrix A follows a 2:4 format
 
 #pragma nv_diag_suppress static_var_with_dynamic_init
 
-const int M = 64;
+const int M = 256;
 const int N = 8;
 const int K = 64;
 
@@ -89,36 +89,36 @@ __global__ void kernel(
 	}
 
 	bar.wait(cuda::std::move(token));
-
 	__syncthreads();
 
-	// load metadata
+
 	u_int32_t metadata;
-	uint metadata_offset = warp_id * 8 * 4 + lane_in_work_group * 8 + group_id;
-	metadata = metadata_array[metadata_offset];
+	uint metadata_offset;
+	GmmaDescriptor desc_a, desc_b;
 
-	__syncthreads();
-
-	// create descriptors
-	GmmaDescriptor desc_a = make_desc<half *, 8, 32, 2>(A_shared);
-	GmmaDescriptor desc_b = make_desc<half *, 8, 16, 0>(B_shared);
-
+	// divide the first 256x32 of A into 4 64x32 tiles and multiply them with the first 32x8 of B
 	// accumulator
-	uint32_t c[2] = {};
-
-	warpgroup_arrive();
-
-	MMA_SP_WRAPPER(c, desc_a, desc_b, metadata);
+	uint32_t c[4][2] = {};
 	
-	desc_a = make_desc<half *, 8, 32, 2>(A_shared + K_A / 2);
+	desc_b = make_desc<half *, 8, 16, 0>(B_shared);
+	#pragma unroll
+	for (int m2 = 0; m2 < 4; m2++) {
+		warpgroup_arrive();
+		desc_a = make_desc<half *, 8, 32, 2>(A_shared + m2 * 64 * K_A);
+		metadata_offset = m2 * 8 * 4 * 4 + warp_id * 8 * 4 + lane_in_work_group * 8 + group_id;
+		metadata = metadata_array[metadata_offset];
+		MMA_SP_WRAPPER(c[m2], desc_a, desc_b, metadata);
+	}
+	
 	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 32 * N);
-	
-	warpgroup_arrive();
-	
-	metadata_offset = warp_id * 8 * 4 + 8 * 2 + lane_in_work_group * 8 + group_id;
-	metadata = metadata_array[metadata_offset];
-	
-	MMA_SP_WRAPPER(c, desc_a, desc_b, metadata);
+	#pragma unroll
+	for (int m2 = 0; m2 < 4; m2++) {
+		warpgroup_arrive();
+		desc_a = make_desc<half *, 8, 32, 2>(A_shared + m2 * 64 * K_A + K_A / 2);
+		metadata_offset = m2 * 8 * 4 * 4 + warp_id * 8 * 4 + 8 * 2 + lane_in_work_group * 8 + group_id;
+		metadata = metadata_array[metadata_offset];
+		MMA_SP_WRAPPER(c[m2], desc_a, desc_b, metadata);
+	}
 
 	// commit, start the computation
 	warpgroup_commit_batch();
@@ -133,12 +133,13 @@ __global__ void kernel(
 
 	// store the result
 	uint32_t *C_ptr = reinterpret_cast<uint32_t *>(C);
-
-	int offset1 = warp_id * 16 * 4 + group_id * 4 + lane_in_group;
-	int offset2 = warp_id * 16 * 4 + (group_id + 8) * 4 + lane_in_group;
-
-	C_ptr[offset1] = c[0];
-	C_ptr[offset2] = c[1];
+	
+	for (int m2 = 0; m2 < 4; m2++) {
+		int offset1 = m2 * 64 * 4 + warp_id * 16 * 4 + group_id * 4 + lane_in_group;
+		int offset2 = m2 * 64 * 4 + warp_id * 16 * 4 + (group_id + 8) * 4 + lane_in_group;
+		C_ptr[offset1] = c[m2][0];
+		C_ptr[offset2] = c[m2][1];
+	}
 }
 
 int main() {
