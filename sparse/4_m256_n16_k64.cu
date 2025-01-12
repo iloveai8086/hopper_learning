@@ -22,7 +22,7 @@ Sparse means matrix A follows a 2:4 format
 #pragma nv_diag_suppress static_var_with_dynamic_init
 
 const int M = 256;
-const int N = 8;
+const int N = 16;
 const int K = 64;
 
 // 2:4 format
@@ -36,14 +36,14 @@ namespace cde = cuda::device::experimental;
 
 __device__ void MMA_SP_WRAPPER(uint32_t * c, GmmaDescriptor desc_a, GmmaDescriptor desc_b, uint32_t metadata) {
 	asm volatile("wgmma.mma_async.sp.sync.aligned.m64n8k32.f16.f16.f16 "
-				 "{%0, %1}, " // c
-				 "%2, %3, "	  // desc A, B
-				 "%4, "		  // meta
-				 "%5, "		  // thread selection
-				 "%6, "		  // scale D
-				 "%7, %8, "	  // +/- scale A, B
-				 "%9, %10;"	  // transpose A, B
-				 : "+r"(c[0]), "+r"(c[1])
+				 "{%0, %1, %2, %3}, " // c
+				 "%4, %5, "	  // desc A, B
+				 "%6, "		  // meta
+				 "0, "		  // thread selection
+				 "1, "		  // scale D
+				 "%9, %10, "	  // +/- scale A, B
+				 "%11, %12;"	  // transpose A, B
+				 : "+r"(c[0]), "+r"(c[1]), "+r"(c[2]), "+r"(c[3])
 				 : "l"(desc_a), "l"(desc_b),
 				   "r"(metadata),	// metadata
 				   "r"(0),			// thread selection
@@ -96,9 +96,9 @@ __global__ void kernel(
 	uint metadata_offset;
 	GmmaDescriptor desc_a, desc_b;
 
-	// divide the 256x64 of A into 4 64x32 tiles and multiply them with the B divided into 2 32x8 tiles
+	// divide the 256x64 of A into 4 64x32 tiles and multiply them with the B divided into 2 32x16 tiles
 	// accumulator
-	uint32_t c[4][2] = {};
+	uint32_t c[4][4] = {};
 	
 	desc_b = make_desc<half *, 8, 16, 0>(B_shared);
 	#pragma unroll
@@ -179,7 +179,7 @@ int main() {
 			   cudaMemcpyHostToDevice);
 
 	CUtensorMap tensor_map_a = create_2d_tensor_map<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_64B>(M, K_A, M, K_A, d_A);
-	CUtensorMap tensor_map_b = create_2d_tensor_map<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_NONE>(K, N, K, N, d_B);
+	CUtensorMap tensor_map_b = create_2d_tensor_map<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_32B>(K, N, K, N, d_B);
 
 	kernel<<<blocks, threads_per_block>>>(tensor_map_a, tensor_map_b, d_C, d_metadata);
 
