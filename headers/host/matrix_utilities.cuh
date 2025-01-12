@@ -32,12 +32,12 @@ int rand_int(int max)
 template<int decimal>
 void print_matrix(half *matrix, int rows, int cols)
 {
-    std::string str = "%." + std::to_string(decimal) + "f ";
+    const std::string str = "%." + std::to_string(decimal) + "f ";
   for (int i = 0; i < rows; i++)
   {
     for (int j = 0; j < cols; j++)
     {
-      printf(str, __half2float(matrix[i * cols + j]));
+      printf(str.c_str(), __half2float(matrix[i * cols + j]));
     }
     printf("\n");
   }
