@@ -153,9 +153,9 @@ int main() {
 
 	CPU_gemm(h_A, h_B, h_CPU, M, N, K);
 
-	print_differnce(h_C, h_CPU, M, N, 0.0f);
+	// print_differnce(h_C, h_CPU, M, N, 0.0f);
 	
-	print_matrix(h_C, M, N);
+	// print_matrix(h_C, M, N);
 	
 	compare_matrices(h_CPU, h_C, M, N);
 
