@@ -100,7 +100,7 @@ __global__ void kernel(
 	// accumulator
 	uint32_t c[4][2] = {};
 	
-	desc_b = make_desc<half *, 8, 16, 0>(B_shared);
+	desc_b = make_desc<half *, 8, 8, 0>(B_shared);
 	#pragma unroll
 	for (int m2 = 0; m2 < 4; m2++) {
 		warpgroup_arrive();
@@ -110,7 +110,7 @@ __global__ void kernel(
 		MMA_SP_WRAPPER(c[m2], desc_a, desc_b, metadata);
 	}
 	
-	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 32 * N);
+	desc_b = make_desc<half *, 8, 8, 0>(B_shared + 32 * N);
 	#pragma unroll
 	for (int m2 = 0; m2 < 4; m2++) {
 		warpgroup_arrive();
