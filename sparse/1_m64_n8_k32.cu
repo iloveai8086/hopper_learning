@@ -29,6 +29,9 @@ const int K_A = 16;
 const int threads_per_block = 32 * 4; // 4 warps
 const int blocks = 1;
 
+using barrier = cuda::barrier<cuda::thread_scope_block>;
+namespace cde = cuda::device::experimental;
+
 __global__ void kernel(
                         half *A,
                         const __grid_constant__ CUtensorMap tensor_map_b,
