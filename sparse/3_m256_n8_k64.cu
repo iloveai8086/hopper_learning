@@ -34,6 +34,25 @@ const int blocks = 1;
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
+__device__ void MMA_SP_WRAPPER(uint32_t * c, GmmaDescriptor desc_a, GmmaDescriptor desc_b, uint32_t metadata) {
+	asm volatile("wgmma.mma_async.sp.sync.aligned.m64n8k32.f16.f16.f16 "
+				 "{%0, %1}, " // c
+				 "%2, %3, "	  // desc A, B
+				 "%4, "		  // meta
+				 "0, "		  // thread selection
+				 "1, "		  // scale D
+				 "%7, %8, "	  // +/- scale A, B
+				 "%9, %10;"	  // transpose A, B
+				 : "+r"(c[0]), "+r"(c[1])
+				 : "l"(desc_a), "l"(desc_b),
+				   "r"(metadata),	// metadata
+				   "r"(0),			// thread selection
+				   "r"(1),			// scale D
+				   "n"(1), "n"(1),	// +- scale A, B
+				   "n"(0), "n"(1)); // transpose A, B
+}
+
+
 __global__ void kernel(
                         const __grid_constant__ CUtensorMap tensor_map_a,
                         const __grid_constant__ CUtensorMap tensor_map_b,
@@ -89,21 +108,7 @@ __global__ void kernel(
 
 	warpgroup_arrive();
 
-	asm volatile("wgmma.mma_async.sp.sync.aligned.m64n8k32.f16.f16.f16 "
-				 "{%0, %1}, " // c
-				 "%2, %3, "	  // desc A, B
-				 "%4, "		  // meta
-				 "0, "		  // thread selection
-				 "1, "		  // scale D
-				 "%7, %8, "	  // +/- scale A, B
-				 "%9, %10;"	  // transpose A, B
-				 : "+r"(c[0]), "+r"(c[1])
-				 : "l"(desc_a), "l"(desc_b),
-				   "r"(metadata),	// metadata
-				   "r"(0),			// thread selection
-				   "r"(1),			// scale D
-				   "n"(1), "n"(1),	// +- scale A, B
-				   "n"(0), "n"(1)); // transpose A, B
+	MMA_SP_WRAPPER(c, desc_a, desc_b, metadata);
 	
 	desc_a = make_desc<half *, 8, 32, 2>(A_shared + K_A / 2);
 	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 32 * N);
@@ -113,21 +118,7 @@ __global__ void kernel(
 	metadata_offset = warp_id * 8 * 4 + 8 * 2 + lane_in_work_group * 8 + group_id;
 	metadata = metadata_array[metadata_offset];
 	
-	asm volatile("wgmma.mma_async.sp.sync.aligned.m64n8k32.f16.f16.f16 "
-				 "{%0, %1}, " // c
-				 "%2, %3, "	  // desc A, B
-				 "%4, "		  // meta
-				 "0, "		  // thread selection
-				 "1, "		  // scale D
-				 "%7, %8, "	  // +/- scale A, B
-				 "%9, %10;"	  // transpose A, B
-				 : "+r"(c[0]), "+r"(c[1])
-				 : "l"(desc_a), "l"(desc_b),
-				   "r"(metadata),	// metadata
-				   "r"(0),			// thread selection
-				   "r"(1),			// scale D
-				   "n"(1), "n"(1),	// +- scale A, B
-				   "n"(0), "n"(1)); // transpose A, B
+	MMA_SP_WRAPPER(c, desc_a, desc_b, metadata);
 
 	// commit, start the computation
 	warpgroup_commit_batch();
