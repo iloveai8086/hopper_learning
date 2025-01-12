@@ -6,8 +6,11 @@ LINKS=-lcudart -lcuda
 OUTPUT=bin
 
 all:
-	make test
+	make full
 	make run
+	
+full:
+	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} dense/1_n8.cu
 
 test:
 	${NVCC} -arch=sm_${sm_version} ${OPTIMIZATION} ${INCLUDES} ${LINKS} -o ${OUTPUT} examples/test.cu
