@@ -19,6 +19,8 @@ Sparse means matrix A follows a 2:4 format
 #include "tma_tensor_map.cuh"
 #include "wgmma.cuh"
 
+#pragma nv_diag_suppress static_var_with_dynamic_init
+
 const int M = 64;
 const int N = 8;
 const int K = 32;
@@ -33,7 +35,7 @@ using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
 __global__ void kernel(
-                        half *A,
+                        const __grid_constant__ CUtensorMap tensor_map_a,
                         const __grid_constant__ CUtensorMap tensor_map_b,
                         half *C,
                         u_int32_t *metadata_array) {
@@ -58,33 +60,16 @@ __global__ void kernel(
 	uint64_t token;
 	if (tid == 0) {
 		// call the loading api
-		// cde::cp_async_bulk_tensor_2d_global_to_shared(A_shared, &tensor_map_a, 0,
-		// 											  0, bar);
+		cde::cp_async_bulk_tensor_2d_global_to_shared(A_shared, &tensor_map_a, 0,
+													  0, bar);
 		cde::cp_async_bulk_tensor_2d_global_to_shared(B_shared, &tensor_map_b,
 													  0, 0, bar);
-		token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(B_shared));
+		token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(A_shared) + sizeof(B_shared));
 	} else {
 		token = bar.arrive();
 	}
 
 	bar.wait(cuda::std::move(token));
-
-	
-	// use one thread to load so it's easier to tell the layout
-	// refer to the ptx menu for the layout of the shared memory
-	if (tid == 0) {
-		for (int i = 0; i < M; i++) {
-			for (int j = 0; j < K_A; j++) {
-				int block_x = i / 8;
-				int block_row = i % 8;
-				int block_y = j / 8;
-				int block_col = j % 8;
-				int block_id = block_x * 2 + block_y;
-				int offset = block_id * 64 + block_row * 8 + block_col;
-				A_shared[offset] = A[i * K_A + j];
-			}
-		}
-	}
 
 	__syncthreads();
 
@@ -96,7 +81,7 @@ __global__ void kernel(
 	__syncthreads();
 
 	// create descriptors
-	GmmaDescriptor desc_a = make_desc<half *, 8, 16, 0>(A_shared);
+	GmmaDescriptor desc_a = make_desc<half *, 8, 16, 3>(A_shared);
 	GmmaDescriptor desc_b = make_desc<half *, 8, 16, 0>(B_shared);
 
 	// accumulator
@@ -177,9 +162,10 @@ int main() {
 	cudaMemcpy(d_metadata, metadata_array, metadata_size * sizeof(u_int32_t),
 			   cudaMemcpyHostToDevice);
 
+	CUtensorMap tensor_map_a = create_2d_tensor_map<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_32B>(M, K, M, K, d_A);
 	CUtensorMap tensor_map_b = create_2d_tensor_map<half, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, CU_TENSOR_MAP_SWIZZLE_NONE>(K, N, K, N, d_B);
 
-	kernel<<<blocks, threads_per_block>>>(d_A, tensor_map_b, d_C, d_metadata);
+	kernel<<<blocks, threads_per_block>>>(tensor_map_a, tensor_map_b, d_C, d_metadata);
 
 	cuda_check_error();
 
