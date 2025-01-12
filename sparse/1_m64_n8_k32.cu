@@ -133,8 +133,6 @@ int main() {
 	fill_24(h_A, M, K);
 	fill_random(h_B, K, N);
 
-	// print_matrix(h_A, M, K);
-
 	// extract the non-zeros in each 2:4 tile to a compressed matrix A2
 	compress24(h_A, h_A2, M, K);
 
