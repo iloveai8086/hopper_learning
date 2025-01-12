@@ -81,7 +81,7 @@ __global__ void kernel(
 	__syncthreads();
 
 	// create descriptors
-	GmmaDescriptor desc_a = make_desc<half *, 8, 16, 3>(A_shared);
+	GmmaDescriptor desc_a = make_desc<half *, 8, 16, 2>(A_shared);
 	GmmaDescriptor desc_b = make_desc<half *, 8, 16, 0>(B_shared);
 
 	// accumulator
