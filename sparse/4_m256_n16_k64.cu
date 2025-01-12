@@ -35,19 +35,19 @@ using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
 __device__ void MMA_SP_WRAPPER(uint32_t * c, GmmaDescriptor desc_a, GmmaDescriptor desc_b, uint32_t metadata) {
-	asm volatile("wgmma.mma_async.sp.sync.aligned.m64n8k32.f16.f16.f16 "
+	asm volatile("wgmma.mma_async.sp.sync.aligned.m64n16k32.f16.f16.f16 "
 				 "{%0, %1, %2, %3}, " // c
 				 "%4, %5, "	  // desc A, B
 				 "%6, "		  // meta
-				 "0, "		  // thread selection
-				 "1, "		  // scale D
+				 "%7, "		  // thread selection
+				 "%8, "		  // scale D
 				 "%9, %10, "	  // +/- scale A, B
 				 "%11, %12;"	  // transpose A, B
 				 : "+r"(c[0]), "+r"(c[1]), "+r"(c[2]), "+r"(c[3])
 				 : "l"(desc_a), "l"(desc_b),
 				   "r"(metadata),	// metadata
-				   "r"(0),			// thread selection
-				   "r"(1),			// scale D
+				   "n"(0),			// thread selection
+				   "n"(1),			// scale D
 				   "n"(1), "n"(1),	// +- scale A, B
 				   "n"(0), "n"(1)); // transpose A, B
 }
@@ -100,7 +100,7 @@ __global__ void kernel(
 	// accumulator
 	uint32_t c[4][4] = {};
 	
-	desc_b = make_desc<half *, 8, 16, 0>(B_shared);
+	desc_b = make_desc<half *, 8, 16, 3>(B_shared);
 	#pragma unroll
 	for (int m2 = 0; m2 < 4; m2++) {
 		warpgroup_arrive();
@@ -110,7 +110,7 @@ __global__ void kernel(
 		MMA_SP_WRAPPER(c[m2], desc_a, desc_b, metadata);
 	}
 	
-	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 32 * N);
+	desc_b = make_desc<half *, 8, 16, 3>(B_shared + 32 * N);
 	#pragma unroll
 	for (int m2 = 0; m2 < 4; m2++) {
 		warpgroup_arrive();
@@ -139,6 +139,8 @@ __global__ void kernel(
 		int offset2 = m2 * 64 * N / 2 + warp_id * 16 * N / 2 + (group_id + 8) * N / 2 + lane_in_group;
 		C_ptr[offset1] = c[m2][0];
 		C_ptr[offset2] = c[m2][1];
+		C_ptr[offset1 + 4] = c[m2][2];
+		C_ptr[offset2 + 4] = c[m2][3];
 	}
 }
 
