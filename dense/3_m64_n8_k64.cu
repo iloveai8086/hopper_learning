@@ -94,11 +94,11 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
 				 : "+r"(c[0]), "+r"(c[1])
 				 : "l"(desc_a), "l"(desc_b));
-	
+
 	// second step
 	desc_a = make_desc<half *, 8, 64, 1>(A_shared + 16);
 	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 16 * 8);
-	
+
 	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
 				 "{%0, %1}, " // accumulator
 				 "%2, %3, "	  // matrix a descriptor
@@ -108,11 +108,11 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
 				 : "+r"(c[0]), "+r"(c[1])
 				 : "l"(desc_a), "l"(desc_b));
-	
+
 	// third step
 	desc_a = make_desc<half *, 8, 64, 1>(A_shared + 16 + 16);
 	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 16 * 8 + 16 * 8);
-	
+
 	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
 				 "{%0, %1}, " // accumulator
 				 "%2, %3, "	  // matrix a descriptor
@@ -122,10 +122,10 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
 				 : "+r"(c[0]), "+r"(c[1])
 				 : "l"(desc_a), "l"(desc_b));
-	
+
 	desc_a = make_desc<half *, 8, 64, 1>(A_shared + 16 + 16 + 16);
 	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 16 * 8 + 16 * 8 + 16 * 8);
-	
+
 	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
 				 "{%0, %1}, " // accumulator
 				 "%2, %3, "	  // matrix a descriptor
@@ -135,7 +135,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
 				 : "+r"(c[0]), "+r"(c[1])
 				 : "l"(desc_a), "l"(desc_b));
-	
+
 	warpgroup_arrive();
 
 	// commit, start the computation
@@ -190,7 +190,7 @@ int main() {
 
 	cudaMemcpy(h_C, d_C, M * N * sizeof(half), cudaMemcpyDeviceToHost);
 
-	// print_matrix(h_C, M, N);
+	print_matrix<5>(h_A, M, K);
 
 	CPU_gemm(h_A, h_B, h_CPU, M, N, K);
 

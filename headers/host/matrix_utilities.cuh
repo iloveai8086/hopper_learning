@@ -5,6 +5,7 @@
 #include <cuda_fp16.h>
 #include <random>
 #include <map>
+#include <string>
 
 #ifndef CUDA_CHECK
 #define CUDA_CHECK(callstr)                                                              \
@@ -28,13 +29,15 @@ int rand_int(int max)
   return rand() % max;
 }
 
+template<int decimal>
 void print_matrix(half *matrix, int rows, int cols)
 {
+    std::string str = "%." + std::to_string(decimal) + "f ";
   for (int i = 0; i < rows; i++)
   {
     for (int j = 0; j < cols; j++)
     {
-      printf("%.0f ", __half2float(matrix[i * cols + j]));
+      printf(str, __half2float(matrix[i * cols + j]));
     }
     printf("\n");
   }
@@ -100,7 +103,7 @@ void fill_rowwise(int *matrix, int rows, int cols) {
 		for (int c = 0; c < cols; c++) {
 			matrix[r * cols + c] = r * rows + c;
 		}
-	} 
+	}
 }
 
 void transpose(half *matrix, int rows, int cols) {
