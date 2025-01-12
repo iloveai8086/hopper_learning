@@ -4,7 +4,8 @@ INCLUDES=-I./headers/device/ -I./headers/host/
 OPTIMIZATION=-O0
 LINKS=-lcudart -lcuda
 OUTPUT=bin
-KERNEL=1_n8.cu
+KERNEL=dense/1_n8.cu
+COMMENT=update
 
 all:
 	make kernel
@@ -15,7 +16,7 @@ kernel:
 
 push:
 	git add .
-	git commit -m "update"
+	git commit -m "${COMMENT}"
 	git push
 
 run:
