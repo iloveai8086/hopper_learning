@@ -96,7 +96,7 @@ __global__ void kernel(
 	uint metadata_offset;
 	GmmaDescriptor desc_a, desc_b;
 
-	// divide the first 256x32 of A into 4 64x32 tiles and multiply them with the first 32x8 of B
+	// divide the 256x64 of A into 4 64x32 tiles and multiply them with the B divided into 2 32x8 tiles
 	// accumulator
 	uint32_t c[4][2] = {};
 	
@@ -135,8 +135,8 @@ __global__ void kernel(
 	uint32_t *C_ptr = reinterpret_cast<uint32_t *>(C);
 	
 	for (int m2 = 0; m2 < 4; m2++) {
-		int offset1 = m2 * 64 * 4 + warp_id * 16 * 4 + group_id * 4 + lane_in_group;
-		int offset2 = m2 * 64 * 4 + warp_id * 16 * 4 + (group_id + 8) * 4 + lane_in_group;
+		int offset1 = m2 * 64 * N / 2 + warp_id * 16 * N / 2 + group_id * N / 2 + lane_in_group;
+		int offset2 = m2 * 64 * N / 2 + warp_id * 16 * N / 2 + (group_id + 8) * N / 2 + lane_in_group;
 		C_ptr[offset1] = c[m2][0];
 		C_ptr[offset2] = c[m2][1];
 	}
