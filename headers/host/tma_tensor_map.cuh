@@ -58,6 +58,7 @@ CUtensorMap create_1d_tensor_map(uint64_t tensor_dim, uint32_t tile_dim, void *t
 // create a 2d tensor map
 // for a matrix, row number is tensor_dim1, column number is tensor_dim2
 // assuming row major
+template<typename T, CUtensorMapDataType type, CUtensorMapSwizzle swizzle>
 CUtensorMap create_2d_tensor_map(uint64_t tensor_dim1, uint64_t tensor_dim2, uint32_t tile_dim1, uint32_t tile_dim2, void *tensor_ptr)
 {
   // https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html
