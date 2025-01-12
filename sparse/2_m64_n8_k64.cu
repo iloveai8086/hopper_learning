@@ -105,8 +105,8 @@ __global__ void kernel(
 				   "n"(1), "n"(1),	// +- scale A, B
 				   "n"(0), "n"(1)); // transpose A, B
 	
-	GmmaDescriptor desc_a = make_desc<half *, 8, 32, 2>(A_shared + K_A / 2);
-	GmmaDescriptor desc_b = make_desc<half *, 8, 16, 0>(B_shared + 32 * N);
+	desc_a = make_desc<half *, 8, 32, 2>(A_shared + K_A / 2);
+	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 32 * N);
 	
 	metadata_offset = warp_id * 8 * 4 + 8 * 2 + lane_in_work_group * 8 + group_id;
 	metadata = metadata_array[metadata_offset];
