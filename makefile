@@ -4,7 +4,7 @@ INCLUDES=-I./headers/device/ -I./headers/host/
 OPTIMIZATION=-O0
 LINKS=-lcudart -lcuda
 OUTPUT=bin
-KERNEL=dense/2_m64_n16_k16.cu
+KERNEL=dense/2_m64_n8_k64.cu
 COMMENT=update
 
 all:
