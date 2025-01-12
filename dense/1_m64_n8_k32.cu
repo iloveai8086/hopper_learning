@@ -97,7 +97,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 	
 	// second step
 	desc_a = make_desc<half *, 8, 32, 2>(A_shared + 16);
-	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 32 * 4);
+	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 16 * 8);
 	
 	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
 				 "{%0, %1}, " // accumulator

@@ -72,7 +72,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 	__syncthreads();
 
 	// create descriptors for the matrices
-	GmmaDescriptor desc_a = make_desc<half *, 8, 32, 2>(A_shared);
+	GmmaDescriptor desc_a = make_desc<half *, 8, 64, 1>(A_shared);
 	GmmaDescriptor desc_b = make_desc<half *, 8, 16, 0>(B_shared);
 
 	// accumulator
@@ -96,8 +96,35 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map_a,
 				 : "l"(desc_a), "l"(desc_b));
 	
 	// second step
-	desc_a = make_desc_a_test<half *, 2>(A_shared + 16);
-	desc_b = make_desc_b(B_shared + 32 * 4);
+	desc_a = make_desc<half *, 8, 64, 1>(A_shared + 16);
+	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 16 * 8);
+	
+	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
+				 "{%0, %1}, " // accumulator
+				 "%2, %3, "	  // matrix a descriptor
+				 "1, "		  // 0 => D = A*B, 1 => D = D + A*B
+				 "1, 1, " // 0 => no scaling, 1 => scaling, scaling means times
+						  // -1 to a or b
+				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
+				 : "+r"(c[0]), "+r"(c[1])
+				 : "l"(desc_a), "l"(desc_b));
+	
+	// third step
+	desc_a = make_desc<half *, 8, 64, 1>(A_shared + 16 + 16);
+	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 16 * 8 + 16 * 8);
+	
+	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
+				 "{%0, %1}, " // accumulator
+				 "%2, %3, "	  // matrix a descriptor
+				 "1, "		  // 0 => D = A*B, 1 => D = D + A*B
+				 "1, 1, " // 0 => no scaling, 1 => scaling, scaling means times
+						  // -1 to a or b
+				 "0, 1;" // transpose a and b, 0 => no transpose, 1 => transpose
+				 : "+r"(c[0]), "+r"(c[1])
+				 : "l"(desc_a), "l"(desc_b));
+	
+	desc_a = make_desc<half *, 8, 64, 1>(A_shared + 16 + 16 + 16);
+	desc_b = make_desc<half *, 8, 16, 0>(B_shared + 16 * 8 + 16 * 8 + 16 * 8);
 	
 	asm volatile("wgmma.mma_async.sync.aligned.m64n8k16.f16.f16.f16 "
 				 "{%0, %1}, " // accumulator
