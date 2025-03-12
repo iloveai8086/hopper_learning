@@ -3,7 +3,7 @@ NVCC=/usr/local/cuda-12.4/bin/nvcc
 INCLUDES=-I./headers/device/ -I./headers/host/
 OPTIMIZATION=-O0
 LINKS=-lcudart -lcuda
-OUTPUT=bin
+OUTPUT=run
 KERNEL=dense/2_m64_n8_k64.cu
 COMMENT=update
 
