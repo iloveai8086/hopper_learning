@@ -3,6 +3,13 @@
 #include <cudaTypedefs.h> // PFN_cuTensorMapEncodeTiled, CUtensorMap
 #include <assert.h>
 #include <cuda_fp16.h>
+#include <cuda_runtime_api.h> // cudaGetDriverEntryPoint, cudaDriverEntryPointQueryResult
+
+// Compatibility alias: CUDA 13 headers expose only PFN_cuTensorMapEncodeTiled_v12000
+// Define unsuffixed alias if missing so project code can compile across toolkit versions.
+#ifndef PFN_cuTensorMapEncodeTiled
+typedef PFN_cuTensorMapEncodeTiled_v12000 PFN_cuTensorMapEncodeTiled;
+#endif
 
 PFN_cuTensorMapEncodeTiled get_cuTensorMapEncodeTiled()
 {
@@ -97,4 +104,11 @@ CUtensorMap create_2d_tensor_map(uint64_t tensor_dim1, uint64_t tensor_dim2, uin
   assert(res == CUDA_SUCCESS && "tensormap creation failed.");
 
   return local_tensor_map;
+}
+
+// Default overload for common int32, no swizzle use-case
+inline CUtensorMap create_2d_tensor_map(uint64_t tensor_dim1, uint64_t tensor_dim2, uint32_t tile_dim1, uint32_t tile_dim2, void *tensor_ptr)
+{
+  return create_2d_tensor_map<int, CU_TENSOR_MAP_DATA_TYPE_INT32, CU_TENSOR_MAP_SWIZZLE_NONE>(
+      tensor_dim1, tensor_dim2, tile_dim1, tile_dim2, tensor_ptr);
 }

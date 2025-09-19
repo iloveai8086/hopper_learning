@@ -1,10 +1,13 @@
-sm_version=90a
-NVCC=/usr/local/cuda-12.4/bin/nvcc
+sm_version=90
+NVCC=/usr/local/cuda-13.0/bin/nvcc
 INCLUDES=-I./headers/device/ -I./headers/host/
-OPTIMIZATION=-O0
+OPTIMIZATION=-O0 -lineinfo
 LINKS=-lcudart -lcuda
 OUTPUT=run
-KERNEL=dense/2_m64_n8_k64.cu
+# KERNEL=examples/6_multicast.cu
+# KERNEL=examples/1_cluster.cu
+# KERNEL=examples/1_2_cluter_dsm.cu
+KERNEL=examples/4_tma_1d.cu
 COMMENT=update
 
 all:

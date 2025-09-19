@@ -1,0 +1,9 @@
+*.onnx
+*.engine
+.cache
+.vscode
+*.ncu-rep
+*.nsys-rep
+run
+*.sqlite
+compile_commands.json
