@@ -7,7 +7,7 @@ OUTPUT=run
 # KERNEL=examples/6_multicast.cu
 # KERNEL=examples/1_cluster.cu
 # KERNEL=examples/1_2_cluter_dsm.cu
-KERNEL=examples/4_tma_1d.cu
+KERNEL=examples/4_tma_1d_v2.cu
 COMMENT=update
 
 all:
