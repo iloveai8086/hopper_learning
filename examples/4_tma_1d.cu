@@ -8,7 +8,6 @@ to show the changes are done.
 
 // supress warning about barrier in shared memory on line 32
 #pragma nv_diag_suppress static_var_with_dynamic_init
-
 #include <cuda/barrier>
 #include <iostream>
 
@@ -19,7 +18,7 @@ to show the changes are done.
 using barrier = cuda::barrier<cuda::thread_scope_block>;
 namespace cde = cuda::device::experimental;
 
-const int array_size = 128;
+const int array_size = 128 * 4;
 const int tile_size = 16;
 
 __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
@@ -41,8 +40,15 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	// 2. Initiate TMA transfer to copy global to shared memory.
 	barrier::arrival_token token;
 	if (threadIdx.x == 0) {
+        printf("blockid:%d, blockDim.x * blockIdx.x:%d\n", blockIdx.x, blockDim.x * blockIdx.x);
+        // coordinate表示偏移，coords 决定的偏移是 global memory 的偏移，不是 shared memory 的。
+        // 如果是smem的offset，那么没道理了，一个smem的大小是16，这边host是16*3，也就是从16*3开始拷贝
+        // 到当前的smem，然后去操作
+        // 拷贝的大小由host端的box size决定的
 		cde::cp_async_bulk_tensor_1d_global_to_shared(tile_shared, &tensor_map,
-													  coordinate, bar);
+													  coordinate + blockDim.x * blockIdx.x, bar);
+		// 第二个参数是，到达计数的更新值（通常是 1，表示一个线程已到达 barrier）。
+		// 第三个参数是，以字节数为粒度的计数													  
 		// 3a. Arrive on the barrier and tell how many bytes are expected to
 		// come in (the transaction count)
 		token = cuda::device::barrier_arrive_tx(bar, 1, sizeof(tile_shared));
@@ -68,7 +74,7 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 
 	// 6. Initiate TMA transfer to copy shared memory to global memory
 	if (threadIdx.x == 0) {
-		cde::cp_async_bulk_tensor_1d_shared_to_global(&tensor_map, coordinate,
+		cde::cp_async_bulk_tensor_1d_shared_to_global(&tensor_map, coordinate + blockDim.x * blockIdx.x,
 													  tile_shared);
 		// 7. Wait for TMA transfer to have finished reading shared memory.
 		// Create a "bulk async-group" out of the previous bulk copy operation.
@@ -81,6 +87,8 @@ __global__ void kernel(const __grid_constant__ CUtensorMap tensor_map,
 	__syncthreads();
 }
 
+// 原本的逻辑是只开一个block，然后只修改这一个block里面的第四行的16个数据
+// 现在改成了开启四个block，每一个block的第四行都修改，然后打印
 int main() {
 	// initialize array and fill it with values
 	int h_data[array_size];
@@ -98,13 +106,14 @@ int main() {
 	cudaMemcpy(d_data, h_data, array_size * sizeof(int),
 			   cudaMemcpyHostToDevice);
 
+    // array_size是需要拷贝的大小，tile_size是每次拷贝到smem的大小，d_data就是global memory的地址
 	// create tensor map
 	CUtensorMap tensor_map =
 		create_1d_tensor_map(array_size, tile_size, d_data);
 
 	size_t offset =
 		tile_size * 3; // select the second tile of the array to change
-	kernel<<<1, 128>>>(tensor_map, offset);
+	kernel<<<4, 128>>>(tensor_map, offset);
 
 	cuda_check_error();
 
