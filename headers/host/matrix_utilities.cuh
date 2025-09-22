@@ -127,17 +127,24 @@ void transpose(half *matrix, int rows, int cols) {
     delete[] temp;
 }
 
-
 // element in each subtile has the same value,
 // which is their tile number in row major order
 void fill_tilewise(int *matrix, int rows, int cols, int tile_size_row, int tile_size_col)
 {
-  for (int i = 0; i < rows; i++)
+  for (int i = 0; i < rows; i++)  // 0-63
   {
-    for (int j = 0; j < cols; j++)
+    for (int j = 0; j < cols; j++)  // 0-31
     {
+      // (0-63) / 16 = 0-3
+      // 32 / 8 = 4 一行四个tile
+      // 0   1   2   3 
+      // 4   5   6   7
+      // 8   9  10  11
+      // 12 13  14  15
+      // j (0-31) / 8 = 0-3 某一行四个tile中的具体哪个tile
+      // (0 - 12) + (0 - 3) = 0 - 15 决定了哪一个tile
     	int id = (i / tile_size_row) * (cols / tile_size_col) + j / tile_size_col;
-      	matrix[i * cols + j] = id % 10;
+      matrix[i * cols + j] = id % 20;  // 原本这边是10，那么超过index为10的tile就不对了
     }
   }
 }

@@ -9,7 +9,8 @@ OUTPUT=run
 # KERNEL=examples/1_2_cluter_dsm.cu
 # KERNEL=examples/4_tma_1d_v2.cu
 # KERNEL=examples/4_tma_1d.cu
-KERNEL=examples/5_tma_2d.cu
+# KERNEL=examples/5_tma_2d.cu
+KERNEL=examples/5_tma_2d_v2.cu
 COMMENT=update
 
 all:
